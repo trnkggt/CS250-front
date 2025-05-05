@@ -12,10 +12,14 @@ import {
   CircularProgress,
   Switch,
   FormControlLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 
 const Profile = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, setUser } = useAuth();
   const [form, setForm] = useState({ username: '', email: '' });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -25,6 +29,8 @@ const Profile = () => {
   const [token, setToken] = useState('');
   const [tokenMsg, setTokenMsg] = useState('');
   const [tokenLoading, setTokenLoading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -79,6 +85,25 @@ const Profile = () => {
       setTokenMsg('Failed to save token.');
     } finally {
       setTokenLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteLoading(true);
+    setError('');
+    try {
+      await users.deleteCurrentUser();
+      setUser(null);
+      window.location.href = '/login';
+    } catch (err) {
+      if (err.response?.status === 403) {
+        setError('Your session may have expired. Please try logging out and logging back in before deleting your account.');
+      } else {
+        setError(err.response?.data?.detail || 'Failed to delete account. Please try again later.');
+      }
+    } finally {
+      setDeleteLoading(false);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -150,6 +175,9 @@ const Profile = () => {
           <Typography variant="h6" gutterBottom>
             Store Token
           </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Go to Canvas profile using Laptop or PC, go to settings, New Access Token, Leave datetime fields empty to generate non expirable token
+          </Typography>
           <TextField
             fullWidth
             id="token"
@@ -177,6 +205,29 @@ const Profile = () => {
             </Alert>
           )}
         </Box>
+        <Box sx={{ mt: 4 }}>
+          <Button
+            variant="outlined"
+            color="error"
+            fullWidth
+            onClick={() => setDeleteDialogOpen(true)}
+            disabled={deleteLoading}
+          >
+            {deleteLoading ? <CircularProgress size={20} /> : 'Delete Account'}
+          </Button>
+        </Box>
+        <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+          <DialogTitle>Delete Account</DialogTitle>
+          <DialogContent>
+            <Typography>Are you sure you want to delete your account? This action cannot be undone.</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleteLoading}>Cancel</Button>
+            <Button onClick={handleDeleteAccount} color="error" disabled={deleteLoading}>
+              {deleteLoading ? <CircularProgress size={20} /> : 'Delete'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Paper>
     </Container>
   );

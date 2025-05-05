@@ -57,6 +57,14 @@ export const users = {
   
   deleteUser: (id) => 
     api.delete(`/users/${id}`),
+  
+  deleteCurrentUser: () =>
+    api.delete('/users/delete', {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    }),
 };
 
 // Task endpoints

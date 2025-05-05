@@ -16,7 +16,7 @@ import { auth } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const validationSchema = yup.object({
-  username: yup.string().required('Username is required'),
+  email: yup.string().email('Enter a valid email').required('Email is required'),
   password: yup.string().required('Password is required'),
 });
 
@@ -27,14 +27,13 @@ const Login = () => {
 
   const formik = useFormik({
     initialValues: {
-      username: '',
+      email: '',
       password: '',
     },
     validationSchema: validationSchema,
     onSubmit: async (values) => {
       try {
-        await auth.login(values.username, values.password);
-        // After successful login, refresh user data
+        await auth.login(values.email, values.password);
         await refreshUser();
         navigate('/assignments');
       } catch (error) {
@@ -63,14 +62,15 @@ const Login = () => {
         <form onSubmit={formik.handleSubmit}>
           <TextField
             fullWidth
-            id="username"
-            name="username"
-            label="Username"
-            value={formik.values.username}
+            id="email"
+            name="email"
+            label="Email"
+            value={formik.values.email}
             onChange={formik.handleChange}
-            error={formik.touched.username && Boolean(formik.errors.username)}
-            helperText={formik.touched.username && formik.errors.username}
+            error={formik.touched.email && Boolean(formik.errors.email)}
+            helperText={formik.touched.email && formik.errors.email}
             margin="normal"
+            type="email"
           />
           <TextField
             fullWidth

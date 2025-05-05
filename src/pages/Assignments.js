@@ -75,15 +75,10 @@ const Assignments = () => {
     plannable_id: 1,
   };
 
-  const sampleInReminders = reminders.some(
-    (reminder) => reminder.plannable_id === sampleAssignment.plannable_id
-  );
-
-  const allAssignments = assignments.length === 0 && !sampleInReminders
-    ? [sampleAssignment]
-    : assignments.filter(
-        (a) => a.plannable_id !== sampleAssignment.plannable_id
-      );
+  const sampleInReminders = reminders.some(r => r.plannable_id === sampleAssignment.plannable_id);
+  const assignmentsWithoutSample = assignments.filter(a => a.plannable_id !== sampleAssignment.plannable_id);
+  const allAssignments = [sampleAssignment, ...assignmentsWithoutSample];
+  const isAssignmentInReminders = (plannable_id) => reminders.some(r => r.plannable_id === plannable_id);
 
   const handleScheduleNotification = async (assignment) => {
     setSelectedAssignment(assignment);
@@ -198,6 +193,7 @@ const Assignments = () => {
                       color="primary"
                       onClick={() => handleScheduleNotification(assignment)}
                       sx={{ minWidth: { xs: 32, sm: 120 }, fontSize: { xs: '0.75rem', sm: '1rem' }, px: { xs: 1, sm: 2 } }}
+                      disabled={isAssignmentInReminders(assignment.plannable_id)}
                     >
                       Schedule Notification
                     </Button>

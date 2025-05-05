@@ -30,7 +30,6 @@ const Verify = () => {
       }
     };
     verifyToken();
-    // eslint-disable-next-line
   }, []);
 
   return (

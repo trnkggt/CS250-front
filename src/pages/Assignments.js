@@ -16,10 +16,13 @@ import {
   DialogActions,
   TextField,
   Alert,
+  IconButton,
+  Stack,
 } from '@mui/material';
 import { format, subHours, parseISO } from 'date-fns';
 import { tasks } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import CloseIcon from '@mui/icons-material/Close';
 
 const Assignments = () => {
   const { user } = useAuth();
@@ -31,41 +34,56 @@ const Assignments = () => {
   const [success, setSuccess] = useState('');
 
   const fetchAssignmentsAndReminders = async () => {
+    let assignmentsData = [];
+    let remindersData = [];
+    let errorMsg = '';
     try {
-      const [assignmentsResponse, remindersResponse] = await Promise.all([
-        tasks.getAssignments(),
-        tasks.getReminders(),
-      ]);
-      if (Array.isArray(assignmentsResponse.data)) {
-        setAssignments(assignmentsResponse.data);
-      } else {
-        setError('Invalid response format from assignments endpoint');
-      }
-      if (Array.isArray(remindersResponse.data)) {
-        setReminders(remindersResponse.data);
-      } else {
-        setError('Invalid response format from reminders endpoint');
+      const assignmentsResponse = await tasks.getAssignments();
+      if (assignmentsResponse.data && Array.isArray(assignmentsResponse.data)) {
+        assignmentsData = assignmentsResponse.data;
       }
     } catch (error) {
-      setError('Failed to fetch assignments or reminders');
+      if (error.response && error.response.status === 404) {
+        errorMsg = 'Token is not set.';
+      }
     }
+    try {
+      const remindersResponse = await tasks.getReminders();
+      if (remindersResponse.data && Array.isArray(remindersResponse.data)) {
+        remindersData = remindersResponse.data;
+      } else {
+        errorMsg += (errorMsg ? ' ' : '') + 'Invalid response format from reminders endpoint.';
+      }
+    } catch (error) {
+      errorMsg += (errorMsg ? ' ' : '') + 'Failed to fetch reminders.';
+    }
+    setAssignments(assignmentsData);
+    setReminders(remindersData);
+    setError(errorMsg.trim());
   };
 
   useEffect(() => {
     fetchAssignmentsAndReminders();
   }, []);
 
-  // Add a sample assignment with deadline in 1 minute
   const sampleAssignment = {
     id: 1,
     course: 'SAMPLE101: Sample Course',
     name: 'Sample Assignment (1 minute from now)',
     deadline: new Date(Date.now() + 1 * 60 * 1000).toISOString(),
     points_possible: 100,
-    plannable_id: 1, // Event ID is 1 for the sample assignment
+    plannable_id: 1,
   };
 
-  const allAssignments = [sampleAssignment, ...assignments];
+  const sampleInReminders = reminders.some(
+    (reminder) => reminder.plannable_id === sampleAssignment.plannable_id
+  );
+
+  const allAssignments = assignments.length === 0 && !sampleInReminders
+    ? [sampleAssignment]
+    : assignments.filter(
+        (a) => a.plannable_id !== sampleAssignment.plannable_id
+      );
 
   const handleScheduleNotification = async (assignment) => {
     setSelectedAssignment(assignment);
@@ -105,8 +123,11 @@ const Assignments = () => {
 
   const handleDeleteReminder = async (task_id) => {
     try {
+      const reminderToDelete = reminders.find(r => r.task_id === task_id);
       await tasks.deleteReminder(task_id);
-      // Refresh reminders after deletion
+      if (reminderToDelete && reminderToDelete.plannable_id === sampleAssignment.plannable_id) {
+        setAssignments(prev => [...prev, sampleAssignment]);
+      }
       fetchAssignmentsAndReminders();
     } catch (error) {
       setError('Failed to delete reminder');
@@ -116,8 +137,8 @@ const Assignments = () => {
   if (user && !user.is_verified) {
     return (
       <Container maxWidth="sm">
-        <Paper elevation={3} sx={{ p: 4, mt: 8 }}>
-          <Typography component="h1" variant="h5" align="center" gutterBottom>
+        <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, mt: { xs: 4, sm: 8 } }}>
+          <Typography component="h1" variant="h5" align="center" gutterBottom sx={{ fontSize: { xs: '1.25rem', sm: '2rem' } }}>
             Account Not Verified
           </Typography>
           <Alert severity="warning" sx={{ mb: 2 }}>
@@ -129,25 +150,25 @@ const Assignments = () => {
   }
 
   return (
-    <Container>
-      <Typography variant="h4" component="h1" gutterBottom>
+    <Container maxWidth="lg" sx={{ px: { xs: 0.5, sm: 2 } }}>
+      <Typography variant="h4" component="h1" gutterBottom sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
         Upcoming Assignments
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
 
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
           {success}
         </Alert>
       )}
 
-      <TableContainer component={Paper} sx={{ mt: 4 }}>
-        <Table>
+      <TableContainer component={Paper} sx={{ mt: 4, overflowX: 'auto' }}>
+        <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Event ID</TableCell>
@@ -176,6 +197,7 @@ const Assignments = () => {
                       variant="contained"
                       color="primary"
                       onClick={() => handleScheduleNotification(assignment)}
+                      sx={{ minWidth: { xs: 32, sm: 120 }, fontSize: { xs: '0.75rem', sm: '1rem' }, px: { xs: 1, sm: 2 } }}
                     >
                       Schedule Notification
                     </Button>
@@ -193,12 +215,11 @@ const Assignments = () => {
         </Table>
       </TableContainer>
 
-      {/* Reminders Table */}
-      <Typography variant="h5" component="h2" sx={{ mt: 6, mb: 2 }}>
+      <Typography variant="h5" component="h2" sx={{ mt: 6, mb: 2, fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
         Active Reminders
       </Typography>
-      <TableContainer component={Paper}>
-        <Table>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+        <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Event ID</TableCell>
@@ -223,7 +244,9 @@ const Assignments = () => {
                   </TableCell>
                   <TableCell>{reminder.task_id ?? 'N/A'}</TableCell>
                   <TableCell>
-                    <Button variant="outlined" color="error" onClick={() => handleDeleteReminder(reminder.task_id)}>Delete</Button>
+                    <IconButton aria-label="delete" color="error" onClick={() => handleDeleteReminder(reminder.task_id)}>
+                      <CloseIcon />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))
@@ -238,11 +261,11 @@ const Assignments = () => {
         </Table>
       </TableContainer>
 
-      <Dialog open={open} onClose={handleClose}>
+      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="xs">
         <form onSubmit={handleSubmit}>
           <DialogTitle>Schedule Notification</DialogTitle>
           <DialogContent>
-            <Typography>
+            <Typography sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
               {selectedAssignment && selectedAssignment.deadline ? (
                 <>You will get notification at: <b>{format(subHours(parseISO(selectedAssignment.deadline), 1), 'PPpp')}</b></>
               ) : (
@@ -251,10 +274,12 @@ const Assignments = () => {
             </Typography>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button type="submit" variant="contained" color="primary">
-              Schedule
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: '100%' }}>
+              <Button onClick={handleClose} fullWidth>Cancel</Button>
+              <Button type="submit" variant="contained" color="primary" fullWidth>
+                Schedule
+              </Button>
+            </Stack>
           </DialogActions>
         </form>
       </Dialog>
